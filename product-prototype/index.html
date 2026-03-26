@@ -17,6 +17,7 @@
 <body class="theme-default">
 
     <div id="app" class="app-layout">
+        <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleMobileMenu()"></div>
         
         <nav id="main-nav" class="sidebar hidden">
             <div>
@@ -28,14 +29,39 @@
                     <li><button onclick="navigate('dashboard')" class="nav-link"><i class="ph ph-squares-four text-lg"></i> Dashboard</button></li>
                     <li><button onclick="navigate('canvas')" class="nav-link"><i class="ph ph-book-open text-lg"></i> Learning Canvas</button></li>
                     <li><button onclick="navigate('resources')" class="nav-link"><i class="ph ph-folder text-lg"></i> Resource Hub</button></li>
-                    
-                    <li style="margin-top: var(--spacing-2); border-top: 1px solid var(--color-divider); padding-top: var(--spacing-2);">
-                        <button onclick="handleSignOut()" class="nav-link" style="color: var(--color-text-secondary);"><i class="ph ph-sign-out text-lg"></i> Sign Out</button>
-                    </li>
+                    <div class="flex items-center justify-between" style="padding-top: var(--spacing-1-5); border-top: 1px solid var(--color-divider); margin-top: var(--spacing-1-5);">
+                    <span class="text-sm font-medium flex items-center gap-1"><i class="ph ph-moon"></i> Dark Mode</span>
+                    <button id="toggle-dark" class="toggle-switch" onclick="toggleDarkMode()">
+                        <span class="toggle-knob"></span>
+                    </button>
+                </div>
                 </ul>
             </div>
-            
-            <div style="margin-top: auto;">
+
+            <div style="padding-top: var(--spacing-2); border-top: 1px solid var(--color-divider); margin-top: auto;">
+                <button onclick="openProfileModal()" class="nav-link">
+                    <i class="ph ph-user text-lg"></i> Profile
+                </button>
+                <button onclick="handleSignOut()" class="nav-link" style="color: var(--color-text-secondary);">
+                    <i class="ph ph-sign-out text-lg"></i> Sign Out
+                </button>
+            </div>
+        </nav>
+        <main class="main-content">
+            <header id="mobile-header" class="hidden-desktop flex justify-between items-center hidden" style="margin-bottom: var(--spacing-3);">
+                <div class="flex items-center gap-1">
+                    <i class="ph ph-brain text-secondary text-2xl"></i>
+                    <h2 style="margin: 0; font-size: 18px; color: var(--color-primary);">NeuroLearn</h2>
+                </div>
+                <button onclick="toggleMobileMenu()" class="btn-icon text-xl" style="color: var(--color-text-heading);"><i class="ph ph-list"></i></button>
+            </header>
+            <section id="view-login" class="view-section active max-w-md mx-auto mt-20">
+                <div class="text-center" style="margin-bottom: var(--spacing-3);">
+                    <i class="ph ph-brain text-secondary text-5xl" style="margin-bottom: var(--spacing-1);"></i>
+                    <h1>Welcome to NeuroLearn</h1>
+                    <p class="text-muted">An adaptive environment that shapes itself to how you learn best.</p>
+                </div>
+                
                 <div class="card">
                     <h3>Log In</h3>
                     <form id="login-form" onsubmit="event.preventDefault(); handleLogin();">
@@ -46,43 +72,6 @@
                         
                         <button type="submit" class="btn-primary flex justify-center w-full" style="width: 100%;">Continue</button>
                     </form>
-                </div>
-
-                <div class="flex items-center justify-between" style="padding-top: var(--spacing-1-5); border-top: 1px solid var(--color-divider); margin-top: var(--spacing-1-5);">
-                    <span class="text-sm font-medium flex items-center gap-1"><i class="ph ph-moon"></i> Dark Mode</span>
-                    <button id="toggle-dark" class="toggle-switch" onclick="toggleDarkMode()">
-                        <span class="toggle-knob"></span>
-                    </button>
-                </div>
-
-                <div style="padding-top: var(--spacing-1-5); border-top: 1px solid var(--color-divider); margin-top: var(--spacing-1-5);">
-                    <p class="text-xs font-bold text-muted mb-1">Developer: Force Profile</p>
-                    <select onchange="applyUIConfig(this.value)">
-                        <option value="default">Default</option>
-                        <option value="autism">Autism (Low Arousal)</option>
-                        <option value="dementia">Dementia (High Contrast)</option>
-                        <option value="aphasia">Aphasia (Visual Anchors)</option>
-                        <option value="impairment">General Impairment</option>
-                        <option value="memory">Short-Term Memory</option>
-                    </select>
-                </div>
-            </div>
-        </nav>
-
-        <main class="main-content">
-            
-            <section id="view-login" class="view-section active max-w-md mx-auto mt-20">
-                <div class="text-center" style="margin-bottom: var(--spacing-3);">
-                    <i class="ph ph-brain text-secondary text-5xl" style="margin-bottom: var(--spacing-1);"></i>
-                    <h1>Welcome to NeuroLearn</h1>
-                    <p class="text-muted">An adaptive environment that shapes itself to how you learn best.</p>
-                </div>
-                
-                <div class="card">
-                    <h3>Log In</h3>
-                    <input type="text" placeholder="User ID or Email" value="user_12345" style="margin-bottom: var(--spacing-1);">
-                    <input type="password" placeholder="Password" value="password" style="margin-bottom: var(--spacing-2);" onkeydown="if(event.key === 'Enter') handleLogin()">
-                    <button onclick="handleLogin()" class="btn-primary flex justify-center w-full" style="width: 100%;">Continue</button>
                 </div>
                 <div class="text-center">
                     <button onclick="navigate('signup')" class="btn-secondary" style="border: none;">Create a new account</button>
@@ -134,7 +123,6 @@
                         <p class="text-xs text-muted">Select the button that says "Proceed".</p>
                         
                         <div class="flex gap-1" style="margin-top: var(--spacing-1);">
-                            <button onclick="navigate('login')" class="btn-secondary track-repetitive">Cancel</button>
                             <button onclick="navigate('login')" class="btn-secondary track-back-btn"><i class="ph ph-arrow-left"></i> Go Back</button>
                             <button class="btn-primary" onclick="finishTutorial()">Proceed <i class="ph ph-check"></i></button>
                         </div>
@@ -159,138 +147,93 @@
             <section id="view-dashboard" class="view-section">
                 <h1>Your Dashboard</h1>
                 
-                <div class="card resume-banner flex items-center justify-between">
-                    <div>
-                        <span class="text-xs font-bold text-primary uppercase">Resume Session</span>
-                        <h2 style="margin: 4px 0;">Introduction to Biology: Cells</h2>
-                        <p class="text-sm text-muted" style="margin: 0;">You paused on Step 3 yesterday. Your UI preferences are saved.</p>
-                    </div>
-                    <button onclick="navigate('canvas')" class="btn-primary">
-                        <i class="ph ph-play-circle text-lg"></i> Resume
-                    </button>
-                </div>
-
                 <div class="grid grid-cols-3 gap-2" style="margin-bottom: var(--spacing-3);">
                     <div class="card text-center" style="margin-bottom: 0;">
                         <i class="ph ph-check-circle text-success text-3xl"></i>
-                        <div class="text-2xl font-bold">12</div>
+                        <div class="text-2xl font-bold" id="stat-modules">0</div>
                         <div class="text-xs text-muted">Modules Done</div>
                     </div>
                     <div class="card text-center" style="margin-bottom: 0;">
                         <i class="ph ph-clock text-primary text-3xl"></i>
-                        <div class="text-2xl font-bold">4.5h</div>
+                        <div class="text-2xl font-bold" id="stat-time">0m</div>
                         <div class="text-xs text-muted">Time Learning</div>
                     </div>
                     <div class="card text-center" style="margin-bottom: 0;">
                         <i class="ph ph-flame text-attention text-3xl"></i>
-                        <div class="text-2xl font-bold">3</div>
+                        <div class="text-2xl font-bold" id="stat-streak">0</div>
                         <div class="text-xs text-muted">Day Streak</div>
                     </div>
                 </div>
+
+                <div id="dashboard-sessions-container" class="flex-col gap-2" style="margin-top: var(--spacing-3);"></div>
             </section>
 
             <section id="view-canvas" class="view-section">
                 <div class="flex justify-between items-center" style="margin-bottom: var(--spacing-2);">
                     <div>
                         <span class="text-sm text-secondary font-medium"><i class="ph ph-magic-wand"></i> Adaptive Mode Active</span>
-                        <h1 style="margin-bottom: 0;">Biology: Cell Structure</h1>
+                        <h1 style="margin-bottom: 0;" id="canvas-lesson-title">Biology: Cell Structure</h1>
                     </div>
-                    <button class="btn-secondary"><i class="ph ph-bookmark"></i> Save</button>
                 </div>
 
-                <div class="max-w-prose">
-                    
-                    <div class="card chunk" id="chunk-1">
-                        <h3><i class="ph ph-buildings aphasia-icon"></i> The Cell as a City</h3>
-                        
-                        <ul style="list-style-type: disc; padding-left: 20px; margin: 12px 0;">
-                            <li>The cell is the <span class="keyword">basic unit</span> of life.</li>
-                            <li>Think of it like a <span class="key-phrase">tiny, bustling city</span>.</li>
-                            <li>It has different parts that do different jobs.</li>
-                        </ul>
-                        
-                        <div class="ai-tint card-sm" style="border-radius: 4px;">
-                            <p class="text-sm" style="margin: 0;"><strong>Example:</strong> Just as a city needs a power plant, a cell needs mitochondria for energy.</p>
-                        </div>
-
-                        <button class="btn-primary chunk-btn" onclick="unlockChunk(2, this)">Next Concept <i class="ph ph-arrow-down"></i></button>
-                    </div>
-
-                    <div class="card chunk locked" id="chunk-2">
-                        <h3><i class="ph ph-wall aphasia-icon"></i> The Cell Membrane</h3>
-                        
-                        <ul style="list-style-type: disc; padding-left: 20px; margin: 12px 0;">
-                            <li>The <span class="keyword">membrane</span> is the city wall.</li>
-                            <li>It controls what goes in and out of the cell.</li>
-                            <li>It keeps the inside safe.</li>
-                        </ul>
-
-                        <div class="alert-box flex items-center gap-1" style="margin-top: 12px;">
-                            <i class="ph ph-warning-circle text-attention text-lg"></i> 
-                            <span>System notice: Take a 2-minute break if you feel fatigued.</span>
-                        </div>
-                    </div>
-
-                </div>
-
-                <div class="persistent-anchor">
-                    <p class="text-xs font-bold text-secondary uppercase">Current Goal</p>
-                    <p class="text-sm font-medium">Understand the 3 main parts of a cell.</p>
-                    <p class="text-xs text-muted mt-1">Previous: The cell is like a city.</p>
-                </div>
+                <div class="max-w-prose" id="canvas-content-area"></div>
             </section>
 
             <section id="view-resources" class="view-section">
                 <h1>Resource Hub</h1>
                 
-                <div class="grid grid-cols-2 gap-3" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
-                    <div>
-                        <h2>My Materials</h2>
+                <div>
+                    <h2 style="margin-bottom: var(--spacing-2);">My Materials</h2>
+                    
+                    <div id="drop-zone" class="drop-zone" style="padding: 60px 20px;">
+                        <i class="ph ph-upload-simple text-5xl text-muted" style="margin-bottom: 8px; display: block;"></i>
+                        <h3 style="margin-bottom: 4px;">Upload New Material</h3>
+                        <p class="text-sm text-muted" style="margin-bottom: 16px;">Drag & drop PDFs, or text files.</p>
                         
-                        <div id="drop-zone" class="drop-zone">
-                            <i class="ph ph-upload-simple text-5xl text-muted" style="margin-bottom: 8px; display: block;"></i>
-                            <h3 style="margin-bottom: 4px;">Upload New Material</h3>
-                            <p class="text-sm text-muted" style="margin-bottom: 16px;">Drag & drop PDFs, or text files.</p>
-                            
-                            <input type="file" id="file-upload" class="hidden" accept=".pdf,.txt,.doc,.docx" onchange="handleFileUpload(this.files)">
-                            
-                            <button class="btn-secondary mx-auto" onclick="document.getElementById('file-upload').click()">Select File</button>
-                            
-                            <div id="upload-feedback" class="text-sm font-medium hidden" style="margin-top: 12px;"></div>
-                        </div>
-
-                        <div id="uploaded-files-list" style="margin-top: var(--spacing-2);"></div>
+                        <input type="file" id="file-upload" class="hidden" accept=".pdf,.txt,.doc,.docx" onchange="handleFileUpload(this.files)">
+                        
+                        <button class="btn-secondary mx-auto" onclick="document.getElementById('file-upload').click()">Select File</button>
+                        
+                        <div id="upload-feedback" class="text-sm font-medium hidden" style="margin-top: 12px;"></div>
                     </div>
 
-                    <div>
-                        <h2>Community Library</h2>
-                        
-                        <div class="file-item">
-                            <div class="flex items-center gap-1">
-                                <div class="file-icon-box"><i class="ph ph-file-text"></i></div>
-                                <div>
-                                    <h3 class="text-sm" style="margin-bottom: 2px;">Visual Guide: Photosynthesis</h3>
-                                    <span class="badge badge-green">Tier 1 AI Ranked</span>
-                                </div>
-                            </div>
-                            <button class="btn-secondary" style="padding: 4px 8px; font-size: 12px;"><i class="ph ph-plus"></i> Add</button>
-                        </div>
-
-                        <div class="file-item">
-                            <div class="flex items-center gap-1">
-                                <div class="file-icon-box" style="background-color: var(--color-bg-purple-light); color: var(--color-secondary);"><i class="ph ph-video-camera"></i></div>
-                                <div>
-                                    <h3 class="text-sm" style="margin-bottom: 2px;">Low-Arousal Math Concepts</h3>
-                                    <span class="badge badge-gray">Autism Optimized</span>
-                                </div>
-                            </div>
-                            <button class="btn-secondary" style="padding: 4px 8px; font-size: 12px;"><i class="ph ph-plus"></i> Add</button>
-                        </div>
-                    </div>
+                    <div id="uploaded-files-list" style="margin-top: var(--spacing-3);"></div>
                 </div>
             </section>
 
         </main>
+    </div>
+
+    <div id="profile-modal" class="modal-overlay hidden">
+        <div class="modal-content card">
+            <div class="flex justify-between items-center" style="margin-bottom: var(--spacing-2);">
+                <h2>Your Profile</h2>
+                <button class="btn-icon" onclick="closeProfileModal()"><i class="ph ph-x"></i></button>
+            </div>
+            
+            <div class="flex items-center gap-2" style="margin-bottom: var(--spacing-3);">
+                <div class="user-avatar"><i class="ph ph-user"></i></div>
+                <div>
+                    <p class="font-bold" id="modal-user-email">Loading...</p>
+                    <p class="text-xs text-muted">User ID: <span id="modal-user-id">...</span></p>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: var(--spacing-2); padding-top: var(--spacing-2); border-top: 1px solid var(--color-divider);">
+                <p class="text-xs font-bold text-muted uppercase mb-1">Active Accessibility Theme</p>
+                <div class="flex items-center gap-1">
+                    <i class="ph ph-palette text-primary text-lg"></i>
+                    <select id="modal-theme-selector" onchange="handleProfileChange(this.value)" style="margin: 0; padding: 8px;">
+                        <option value="default">Default</option>
+                        <option value="autism">Autism (Low Arousal)</option>
+                        <option value="dementia">Dementia (High Contrast)</option>
+                        <option value="aphasia">Aphasia (Visual Anchors)</option>
+                        <option value="impairment">General Impairment</option>
+                        <option value="memory">Short-Term Memory</option>
+                    </select>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="scripts.js"></script>

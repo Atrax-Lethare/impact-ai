@@ -1,11 +1,33 @@
 // --- STATE MANAGEMENT ---
+const savedUserId = localStorage.getItem('neuroLearn_userId');
+const savedProfile = localStorage.getItem('neuroLearn_profile') || 'default';
+// NEW: Fetch the array of sessions, or default to an empty array
+const savedSessions = JSON.parse(localStorage.getItem('neuroLearn_sessions')) || [];
+
 const state = {
-  userId: 'user_12345',
-  currentView: 'login',
-  isDarkMode: false,
-  uiProfile: 'default', 
-  fileContents: {}
+    userId: savedUserId,
+    currentView: savedUserId ? 'dashboard' : 'login',
+    isDarkMode: false,
+    uiProfile: savedProfile,
+    sessions: savedSessions,
+    activeLesson: null,
+    fileContents: {}
 };
+
+// --- INITIAL APP LOAD ---
+document.addEventListener("DOMContentLoaded", () => {
+    applyUIConfig(state.uiProfile);
+    renderDashboardSessions();
+    navigate(state.currentView);
+    
+    // NEW: Inject the saved lesson title into the Dashboard
+    const dashboardTitle = document.getElementById('dashboard-active-lesson');
+    if (dashboardTitle) dashboardTitle.textContent = state.activeLesson;
+    
+    if (state.userId) {
+        initializeUserStats();
+    }
+});
 
 // --- FIREBASE SETUP ---
 const firebaseConfig = {
@@ -21,6 +43,7 @@ const firebaseConfig = {
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
+const db = firebase.firestore();
 
 // --- AUTHENTICATION LISTENER ---
 // This watches for changes in the user's login status globally
@@ -63,16 +86,29 @@ async function extractTextFromPDF(file) {
 
 // --- NAVIGATION ---
 function navigate(viewId) {
-  document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-  document.getElementById(`view-${viewId}`).classList.add('active');
-  
-  const sidebar = document.getElementById('main-nav');
-  if (['login', 'signup', 'tutorial', 'analyzing'].includes(viewId)) {
-    sidebar.classList.add('hidden');
-  } else {
-    sidebar.classList.remove('hidden');
-  }
-  state.currentView = viewId;
+    document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+    document.getElementById(`view-${viewId}`).classList.add('active');
+    
+    const sidebar = document.getElementById('main-nav');
+    const mobileHeader = document.getElementById('mobile-header');
+    
+    // Hide sidebar and mobile header on auth/calibration screens
+    if (['login', 'signup', 'tutorial', 'analyzing'].includes(viewId)) {
+        sidebar.classList.add('hidden');
+        if (mobileHeader) mobileHeader.classList.add('hidden');
+    } else {
+        sidebar.classList.remove('hidden');
+        if (mobileHeader) mobileHeader.classList.remove('hidden');
+    }
+    
+    // Auto-close mobile menu if it's open when navigating
+    const overlay = document.getElementById('sidebar-overlay');
+    if (sidebar.classList.contains('mobile-open')) {
+        sidebar.classList.remove('mobile-open');
+        if (overlay) overlay.classList.remove('active');
+    }
+    
+    state.currentView = viewId;
 }
 
 async function handleLogin() {
@@ -86,16 +122,41 @@ async function handleLogin() {
     const userCredential = await auth.signInWithEmailAndPassword(email, password);
     state.userId = userCredential.user.uid; 
 
-    // NEW: Check Firestore for an existing user profile
+    // Check Firestore for an existing user profile
     const userDoc = await db.collection("users").doc(state.userId).get();
 
-    if (userDoc.exists && userDoc.data().uiProfile) {
-      // User has been here before! Apply their saved profile and skip the tutorial.
-      console.log("Welcome back. Loading profile:", userDoc.data().uiProfile);
-      applyUIConfig(userDoc.data().uiProfile);
+    if (userDoc.exists) {
+      const data = userDoc.data();
+      
+      // Load UI Profile
+      if (data.uiProfile) {
+          state.uiProfile = data.uiProfile;
+          localStorage.setItem('neuroLearn_profile', data.uiProfile);
+          applyUIConfig(data.uiProfile);
+      }
+      
+      // NEW: Load their last active lesson from the cloud
+      if (data.activeLesson) {
+          state.activeLesson = data.activeLesson;
+          localStorage.setItem('neuroLearn_activeLesson', data.activeLesson);
+          
+          const dashboardTitle = document.getElementById('dashboard-active-lesson');
+          if (dashboardTitle) dashboardTitle.textContent = data.activeLesson;
+      }
+
+      if (data.sessions) {
+          state.sessions = data.sessions;
+          localStorage.setItem('neuroLearn_sessions', JSON.stringify(data.sessions));
+      }
+
+      renderDashboardSessions();
+      console.log("Welcome back. Profile loaded.");
+      
+      localStorage.setItem('neuroLearn_userId', state.userId);
+      initializeUserStats();
       navigate('dashboard');
     } else {
-      // First time logging in, or profile missing. Run the calibration tutorial.
+      // First time logging in. Run the calibration tutorial.
       console.log("No profile found. Starting calibration...");
       navigate('tutorial');
       startTelemetry();
@@ -153,25 +214,24 @@ async function handleSignup() {
 
 async function handleSignOut() {
   try {
-    // 1. Tell Firebase to end the active session
     await auth.signOut();
-    
-    // 2. Clear the user ID from your local state
     state.userId = null;
     
-    // 3. Reset the UI profile to default (prevents theme bleeding)
+    // NEW: Wipe the local storage clean
+    localStorage.removeItem('neuroLearn_userId');
+    localStorage.removeItem('neuroLearn_profile');
+    localStorage.removeItem('neuroLearn_sessions');
+    state.sessions = [];
+    if (learningTimerInterval) clearInterval(learningTimerInterval);
+    
     applyUIConfig('default');
-    
-    // 4. Return the user to the login screen
     navigate('login');
-    
-    // Optional: Clear any secure form fields just in case
     document.getElementById('login-form').reset();
+    closeProfileModal(); // Make sure the modal closes if it was open
     
     console.log("User successfully signed out.");
   } catch (error) {
     console.error("Sign Out Error:", error.message);
-    alert("There was a problem signing out. Please try again.");
   }
 }
 
@@ -279,6 +339,11 @@ async function finishTutorial() {
 
     // NEW: Save the generated profile to Firestore
     if (state.userId) {
+      // Save locally
+      localStorage.setItem('neuroLearn_userId', state.userId);
+      localStorage.setItem('neuroLearn_profile', determinedProfile);
+
+      // Save to cloud
       db.collection("users").doc(state.userId).set({
         uiProfile: determinedProfile,
         lastCalibrated: firebase.firestore.FieldValue.serverTimestamp()
@@ -290,6 +355,7 @@ async function finishTutorial() {
     setTimeout(() => {
       applyUIConfig(determinedProfile);
       navigate('dashboard');
+      initializeUserStats();
     }, 1000);
 
   }, 1500);
@@ -392,92 +458,200 @@ function addFileToList(file) {
   list.prepend(fileCard);
 }
 
+// --- DYNAMIC AI CANVAS RENDERING ---
 async function generateLesson(filename) {
-  const canvasContainer = document.querySelector('#view-canvas .max-w-prose');
-  const header = document.querySelector('#view-canvas h1');
-  
-  navigate('canvas');
-  header.innerHTML = `Generating Lesson... <i class="ph ph-spinner-gap animate-spin text-primary"></i>`;
-  canvasContainer.innerHTML = `<p class="text-muted">Sending document to AI and adapting to your <b>${state.uiProfile}</b> profile...</p>`;
-
-  try {
-    const documentText = state.fileContents[filename];
-    if (!documentText) throw new Error("Text not found.");
+    // 1. THE TRAFFIC COP: Check if a session for this file already exists
+    const sessionExists = state.sessions.find(s => s.filename === filename);
     
-    // 1. Get the current user's secure token
-    const currentUser = firebase.auth().currentUser;
-    if (!currentUser) throw new Error("You must be logged in to generate lessons.");
-    const idToken = await currentUser.getIdToken();
-
-    // 2. Make the actual fetch request to your backend
-    // Replace the URL with your actual backend endpoint (e.g., your Python server)
-    const response = await fetch('http://localhost:5000/api/generate-lesson', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${idToken}` // Secures your endpoint
-      },
-      body: JSON.stringify({
-        filename: filename,
-        text: documentText,
-        profile: state.uiProfile // Tell the AI how to format the output
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Server responded with status: ${response.status}`);
+    if (sessionExists) {
+        // If it exists, immediately route them to the resume logic and stop!
+        console.log("Session already exists, resuming instead of restarting.");
+        resumeLesson(filename);
+        return; 
     }
 
-    // 3. Expecting a structured JSON response back from your AI
-    const lessonData = await response.json();
+    // --- Only run the code below for BRAND NEW lessons ---
+
+    const canvasContainer = document.getElementById('canvas-content-area');
+    const canvasHeader = document.getElementById('canvas-lesson-title');
     
-    // 4. Render the returned JSON into the UI
-    header.innerHTML = lessonData.title || `Lesson: ${filename}`;
+    state.activeLesson = filename;
     
-    // Clear the loading message
+    // Add the new lesson to the top of the sessions array
+    state.sessions.unshift({ id: Date.now(), filename: filename });
+    
+    // Save locally and to Firebase
+    localStorage.setItem('neuroLearn_sessions', JSON.stringify(state.sessions));
+    localStorage.setItem('neuroLearn_activeLesson', filename);
+    
+    if (state.userId) {
+        db.collection("users").doc(state.userId).set({
+            sessions: state.sessions,
+            activeLesson: filename,
+            lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+    }
+    
+    // Update the dashboard UI with the new card
+    renderDashboardSessions();
+    
+    if (canvasHeader) canvasHeader.innerHTML = `Learning: ${filename}`;
+    navigate('canvas');
     canvasContainer.innerHTML = ''; 
+    
+    if (typeof TelemetryTracker !== 'undefined') TelemetryTracker.start();
 
-    // Dynamically build the lesson chunks based on the AI's JSON output
-    if (lessonData.chunks && Array.isArray(lessonData.chunks)) {
-      lessonData.chunks.forEach((chunk, index) => {
-        const isFirst = index === 0;
-        const chunkHtml = `
-          <div class="card chunk ${isFirst ? '' : 'locked'}" id="chunk-${index + 1}">
-            <h3><i class="ph ph-buildings aphasia-icon"></i> ${chunk.heading}</h3>
-            <div style="margin: 12px 0;">
-               ${chunk.content}
-            </div>
-            ${chunk.example ? `
-            <div class="ai-tint card-sm" style="border-radius: 4px;">
-                <p class="text-sm" style="margin: 0;"><strong>Example:</strong> ${chunk.example}</p>
-            </div>` : ''}
-            
-            ${index < lessonData.chunks.length - 1 ? `
-            <button class="btn-primary chunk-btn" onclick="unlockChunk(${index + 2}, this)">
-              Next Concept <i class="ph ph-arrow-down"></i>
-            </button>` : `<p class="text-success font-medium mt-10"><i class="ph ph-check-circle"></i> Lesson Complete</p>`}
-          </div>
-        `;
-        canvasContainer.insertAdjacentHTML('beforeend', chunkHtml);
-      });
-    } else {
-       canvasContainer.innerHTML = `<p>Lesson generated, but format was unexpected.</p>`;
-    }
-
-  } catch (error) {
-    console.error("API Error:", error);
-    header.innerText = "Error Generating Lesson";
-    canvasContainer.innerHTML = `<p style="color: #ef4444;">Could not connect to the backend or process the document. Error: ${error.message}</p>`;
-  }
+    // Generate the initial AI greeting
+    const startingAsset = {
+        content: `
+            <h3>Let's begin exploring ${filename}.</h3>
+            <p>I have analyzed the document and will adapt this material to your <b>${state.uiProfile}</b> preferences. To start, what is the most basic core concept you want to cover?</p>
+        `
+    };
+    renderAIAsset(startingAsset);
 }
 
-function unlockChunk(id, btnElement) {
-  const chunk = document.getElementById(`chunk-${id}`);
-  if (chunk) {
-    chunk.classList.remove('locked');
-    if (btnElement) btnElement.style.display = 'none';
-    chunk.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }
+// UPDATED: Now accepts the specific filename to resume
+function resumeLesson(filename) {
+    const canvasContainer = document.getElementById('canvas-content-area');
+    const canvasHeader = document.getElementById('canvas-lesson-title');
+
+    // NEW: If they are switching from one active lesson to a DIFFERENT one, 
+    // clear the canvas so the previous lesson's chat doesn't bleed over.
+    if (state.activeLesson !== filename && canvasContainer) {
+        canvasContainer.innerHTML = '';
+    }
+
+    // Update the state to the new active lesson
+    state.activeLesson = filename;
+    localStorage.setItem('neuroLearn_activeLesson', filename);
+    
+    if (canvasHeader) canvasHeader.innerHTML = `Learning: ${filename}`;
+    
+    // If the canvas is empty, inject the "Welcome back" message
+    if (!canvasContainer || !canvasContainer.innerHTML.trim()) {
+        const resumeAsset = {
+            content: `
+                <h3>Welcome back to ${filename}.</h3>
+                <p>Where would you like to pick up? I have your <b>${state.uiProfile}</b> preferences loaded and ready.</p>
+            `
+        };
+        renderAIAsset(resumeAsset);
+    }
+    
+    navigate('canvas');
+}
+
+function renderAIAsset(assetData) {
+    const canvasContainer = document.getElementById('canvas-content-area');
+    const assetId = `asset-${Date.now()}`;
+    
+    // The HTML structure for a single AI response + the 5 interaction buttons
+    const chunkHtml = `
+      <div class="card chunk" id="${assetId}" style="animation: fadeIn 0.5s ease;">
+        
+        <div class="ai-content-wrapper" style="font-size: ${state.uiProfile === 'dementia' ? '1.2em' : '1em'};">
+           ${assetData.content} 
+        </div>
+        
+        <div class="feedback-toolbar" id="toolbar-${assetId}">
+            <button class="btn-feedback" onclick="submitAIFeedback('${assetId}', 'understood')"><i class="ph ph-check-circle"></i> Understood</button>
+            <button class="btn-feedback" onclick="submitAIFeedback('${assetId}', 'not_understood')"><i class="ph ph-warning-circle"></i> Not Understood</button>
+            <button class="btn-feedback" onclick="submitAIFeedback('${assetId}', 'elaborate')"><i class="ph ph-arrows-out"></i> Elaborate</button>
+            <button class="btn-feedback" onclick="submitAIFeedback('${assetId}', 'concise')"><i class="ph ph-arrows-in"></i> Concise</button>
+            <button class="btn-feedback" onclick="toggleCustomMessage('${assetId}')"><i class="ph ph-chat-text"></i> Custom Msg</button>
+        </div>
+        
+        <div class="custom-message-box" id="custom-msg-${assetId}">
+            <input type="text" id="input-${assetId}" placeholder="Ask a question or request a format (e.g., 'Make a mind map')...">
+            <button class="btn-primary" onclick="submitAIFeedback('${assetId}', 'custom')"><i class="ph ph-paper-plane-right"></i></button>
+        </div>
+      </div>
+    `;
+    
+    canvasContainer.insertAdjacentHTML('beforeend', chunkHtml);
+    
+    // Smooth scroll so the new asset is exactly in the center of the screen
+    setTimeout(() => {
+        document.getElementById(assetId).scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+}
+
+function toggleCustomMessage(assetId) {
+    const box = document.getElementById(`custom-msg-${assetId}`);
+    box.classList.toggle('active');
+    if (box.classList.contains('active')) {
+        document.getElementById(`input-${assetId}`).focus();
+    }
+}
+
+// --- MOCK BACKEND CONNECTION ---
+function submitAIFeedback(assetId, action) {
+    // 1. Lock the previous toolbar so they can't click it again
+    const toolbar = document.getElementById(`toolbar-${assetId}`);
+    toolbar.style.opacity = '0.5';
+    toolbar.style.pointerEvents = 'none';
+    document.getElementById(`custom-msg-${assetId}`).classList.remove('active');
+
+    // 2. Extract custom text if they typed something
+    let customText = "";
+    if (action === 'custom') {
+        customText = document.getElementById(`input-${assetId}`).value;
+        if (!customText.trim()) {
+            alert("Please enter a message.");
+            toolbar.style.opacity = '1';
+            toolbar.style.pointerEvents = 'auto';
+            return;
+        }
+    }
+
+    // 3. Increment "Modules Done" stat in the background
+    if (state.userId) {
+        const statsKey = `neuroLearn_stats_${state.userId}`;
+        let userStats = JSON.parse(localStorage.getItem(statsKey));
+        if (userStats) {
+            userStats.modulesDone += 1;
+            localStorage.setItem(statsKey, JSON.stringify(userStats));
+            if (typeof updateDashboardUI === 'function') updateDashboardUI(userStats);
+        }
+    }
+
+    // 4. Show the loading spinner
+    const canvasContainer = document.getElementById('canvas-content-area');
+    const loaderId = `loader-${Date.now()}`;
+    canvasContainer.insertAdjacentHTML('beforeend', `
+        <div id="${loaderId}" class="text-center mt-10" style="padding: 40px 0;">
+            <i class="ph ph-spinner-gap animate-spin text-primary text-4xl mb-2"></i>
+            <p class="text-sm text-muted">AI is generating the next adaptive asset...</p>
+        </div>
+    `);
+    
+    document.getElementById(loaderId).scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    // 5. SIMULATE Python Backend Processing (1.5 second delay)
+    // Later, you will replace this setTimeout with your actual fetch() request to your Python API
+    setTimeout(() => {
+        document.getElementById(loaderId).remove();
+        
+        let generatedContent = "";
+        
+        // Mocking the AI's contextual responses
+        if (action === 'understood') {
+            generatedContent = `<h3>Excellent.</h3><p>Since you understood that, let's move forward to the next logical step in the progression.</p>`;
+        } else if (action === 'not_understood') {
+            generatedContent = `<h3>Let's break that down.</h3><p>Here is a simpler analogy to help conceptualize the previous point...</p><div class="ai-tint card-sm" style="border-radius: 4px; margin-top: 8px;"><p class="text-sm" style="margin: 0;"><strong>Analogy:</strong> Think of it like building a house...</p></div>`;
+        } else if (action === 'elaborate') {
+            generatedContent = `<h3>Diving Deeper</h3><p>Here are the detailed mechanics behind that concept:</p><ul style="list-style-type: disc; margin-left: 20px; margin-top: 8px;"><li>First primary factor.</li><li>Secondary underlying mechanism.</li></ul>`;
+        } else if (action === 'concise') {
+            generatedContent = `<h3>Summary (TL;DR)</h3><p><strong>Core Point:</strong> The main takeaway is X causes Y under Z conditions.</p>`;
+        } else if (action === 'custom') {
+            generatedContent = `<h3>Addressing your request:</h3><p>You asked: <i>"${customText}"</i></p><p>Here is the dynamically generated asset you requested:</p><div style="border: 2px dashed var(--color-primary); padding: 30px; text-align: center; border-radius: 8px; margin-top: 10px; color: var(--color-primary);"><i class="ph ph-image text-3xl"></i><br>Dynamic Visual Generated Here</div>`;
+        }
+
+        // Render the new asset to the screen
+        renderAIAsset({ content: generatedContent });
+
+    }, 1500);
 }
 
 // --- DARK MODE LOGIC ---
@@ -496,4 +670,214 @@ function toggleDarkMode() {
 
 if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
   toggleDarkMode();
+}
+
+// --- MODAL LOGIC ---
+function openProfileModal() {
+    const modal = document.getElementById('profile-modal');
+    modal.classList.remove('hidden');
+
+    // Fetch the current user from Firebase
+    const currentUser = firebase.auth().currentUser;
+    
+    if (currentUser) {
+        document.getElementById('modal-user-email').textContent = currentUser.email;
+        document.getElementById('modal-user-id').textContent = currentUser.uid.substring(0, 8) + ''; 
+    }
+    
+    // Set the dropdown to match the currently active profile
+    const selector = document.getElementById('modal-theme-selector');
+    if (selector) {
+        selector.value = state.uiProfile || 'default';
+    }
+}
+
+function closeProfileModal() {
+    document.getElementById('profile-modal').classList.add('hidden');
+}
+
+function handleProfileChange(newProfile) {
+    // 1. Instantly apply the UI change locally
+    applyUIConfig(newProfile);
+
+    localStorage.setItem('neuroLearn_profile', newProfile);
+    
+    // 2. Save the manual override to Firebase so it remembers for next time
+    if (state.userId) {
+        db.collection("users").doc(state.userId).set({
+            uiProfile: newProfile,
+            lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true })
+        .then(() => console.log(`User manually overrode profile to: ${newProfile}`))
+        .catch((error) => console.error("Error saving manual profile change: ", error));
+    }
+}
+
+// Allow users to close the modal by clicking the dark background overlay
+window.addEventListener('click', function(event) {
+    const modal = document.getElementById('profile-modal');
+    if (event.target === modal) {
+        closeProfileModal();
+    }
+});
+
+// --- USER ANALYTICS & STATS ---
+let learningTimerInterval = null;
+
+function initializeUserStats() {
+    if (!state.userId) return;
+
+    // Create a unique storage key for this specific user
+    const statsKey = `neuroLearn_stats_${state.userId}`;
+    
+    // Fetch existing stats or create a default baseline
+    let userStats = JSON.parse(localStorage.getItem(statsKey)) || {
+        modulesDone: 1, // Start with 1 for the tutorial
+        timeLearningMinutes: 0,
+        currentStreak: 0,
+        lastActiveDate: null
+    };
+
+    // --- 1. CALCULATE DAY STREAK ---
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Strip the time, we only care about the date
+    const todayTimestamp = today.getTime();
+
+    if (userStats.lastActiveDate) {
+        const lastDate = new Date(userStats.lastActiveDate).getTime();
+        const diffInDays = Math.round((todayTimestamp - lastDate) / (1000 * 60 * 60 * 24));
+
+        if (diffInDays === 1) {
+            // They logged in yesterday, streak continues!
+            userStats.currentStreak += 1;
+        } else if (diffInDays > 1) {
+            // They missed a day, streak resets.
+            userStats.currentStreak = 1; 
+        }
+        // If diffInDays is 0, they already logged in today, do nothing to the streak.
+    } else {
+        // First time ever logging in
+        userStats.currentStreak = 1;
+    }
+    
+    // Update the last active date to today
+    userStats.lastActiveDate = todayTimestamp;
+    localStorage.setItem(statsKey, JSON.stringify(userStats));
+    updateDashboardUI(userStats);
+
+    // --- 2. TRACK TIME LEARNING ---
+    // Clear any existing timers so they don't double up
+    if (learningTimerInterval) clearInterval(learningTimerInterval);
+    
+    // Start a timer that adds 1 minute to their stats every 60 seconds
+    learningTimerInterval = setInterval(() => {
+        // Only count time if they are actively in the learning canvas or tutorial
+        if (state.currentView === 'canvas' || state.currentView === 'tutorial') {
+            userStats.timeLearningMinutes += 1;
+            localStorage.setItem(statsKey, JSON.stringify(userStats));
+            updateDashboardUI(userStats);
+        }
+    }, 60000); // 60,000 milliseconds = 1 minute
+}
+
+function updateDashboardUI(stats) {
+    const modulesEl = document.getElementById('stat-modules');
+    const timeEl = document.getElementById('stat-time');
+    const streakEl = document.getElementById('stat-streak');
+
+    if (modulesEl) modulesEl.textContent = stats.modulesDone;
+    if (streakEl) streakEl.textContent = stats.currentStreak;
+
+    // Format the time dynamically
+    if (timeEl) {
+        if (stats.timeLearningMinutes >= 60) {
+            const hours = (stats.timeLearningMinutes / 60).toFixed(1);
+            timeEl.textContent = `${hours}h`;
+        } else {
+            timeEl.textContent = `${stats.timeLearningMinutes}m`;
+        }
+    }
+}
+
+// --- MOBILE MENU LOGIC ---
+function toggleMobileMenu() {
+    const sidebar = document.getElementById('main-nav');
+    const overlay = document.getElementById('sidebar-overlay');
+    
+    sidebar.classList.toggle('mobile-open');
+    
+    if (sidebar.classList.contains('mobile-open')) {
+        overlay.classList.add('active');
+    } else {
+        overlay.classList.remove('active');
+    }
+}
+
+// --- DASHBOARD SESSION MANAGEMENT ---
+function renderDashboardSessions() {
+    const container = document.getElementById('dashboard-sessions-container');
+    if (!container) return;
+
+    // If no sessions exist, show a friendly empty state
+    if (state.sessions.length === 0) {
+        container.innerHTML = `
+            <div class="card resume-banner flex items-center justify-between">
+                <div>
+                    <h2 style="margin: 4px 0;">No Active Lessons</h2>
+                    <p class="text-sm text-muted" style="margin: 0;">Upload a document in the Resource Hub to begin.</p>
+                </div>
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = ''; // Clear current list
+
+    // Loop through the array and build a card for each session
+    state.sessions.forEach(session => {
+        const sessionHtml = `
+            <div class="card resume-banner flex items-center justify-between" style="margin-bottom: var(--spacing-1-5);">
+                <div>
+                    <span class="text-xs font-bold text-primary uppercase">Resume Session</span>
+                    <h2 style="margin: 4px 0;">${session.filename}</h2>
+                    <p class="text-sm text-muted" style="margin: 0;">Your UI preferences are saved.</p>
+                </div>
+                <div class="flex gap-1">
+                    <button onclick="resumeLesson('${session.filename}')" class="btn-primary">
+                        <i class="ph ph-play-circle text-lg"></i> Resume
+                    </button>
+                    <button onclick="deleteSession('${session.filename}')" class="btn-icon danger" style="background: var(--color-bg-card); border: 1px solid var(--color-divider); padding: 10px;">
+                        <i class="ph ph-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        container.insertAdjacentHTML('beforeend', sessionHtml);
+    });
+}
+
+function deleteSession(filename) {
+    // 1. Filter the deleted session out of the array
+    state.sessions = state.sessions.filter(s => s.filename !== filename);
+    
+    // 2. Save the updated array locally
+    localStorage.setItem('neuroLearn_sessions', JSON.stringify(state.sessions));
+    
+    // 3. Save to Firebase
+    if (state.userId) {
+        db.collection("users").doc(state.userId).set({
+            sessions: state.sessions,
+            lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true }).catch(err => console.error("Error deleting session:", err));
+    }
+    
+    // 4. Re-render the dashboard to make it disappear
+    renderDashboardSessions();
+    
+    // If they delete the lesson they are currently looking at, clear the canvas
+    if (state.activeLesson === filename) {
+        state.activeLesson = null;
+        const canvasHeader = document.getElementById('canvas-lesson-title');
+        if (canvasHeader) canvasHeader.innerHTML = 'Learning: No active session';
+        document.getElementById('canvas-content-area').innerHTML = '';
+    }
 }
