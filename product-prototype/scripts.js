@@ -404,11 +404,70 @@ async function generateLesson(filename) {
     const documentText = state.fileContents[filename];
     if (!documentText) throw new Error("Text not found.");
     
-    // Simulated API call block to maintain the original functionality footprint.
-    // Replace this with your actual fetch command.
+    // 1. Get the current user's secure token
+    const currentUser = firebase.auth().currentUser;
+    if (!currentUser) throw new Error("You must be logged in to generate lessons.");
+    const idToken = await currentUser.getIdToken();
+
+    // 2. Make the actual fetch request to your backend
+    // Replace the URL with your actual backend endpoint (e.g., your Python server)
+    const response = await fetch('http://localhost:5000/api/generate-lesson', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${idToken}` // Secures your endpoint
+      },
+      body: JSON.stringify({
+        filename: filename,
+        text: documentText,
+        profile: state.uiProfile // Tell the AI how to format the output
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Server responded with status: ${response.status}`);
+    }
+
+    // 3. Expecting a structured JSON response back from your AI
+    const lessonData = await response.json();
+    
+    // 4. Render the returned JSON into the UI
+    header.innerHTML = lessonData.title || `Lesson: ${filename}`;
+    
+    // Clear the loading message
+    canvasContainer.innerHTML = ''; 
+
+    // Dynamically build the lesson chunks based on the AI's JSON output
+    if (lessonData.chunks && Array.isArray(lessonData.chunks)) {
+      lessonData.chunks.forEach((chunk, index) => {
+        const isFirst = index === 0;
+        const chunkHtml = `
+          <div class="card chunk ${isFirst ? '' : 'locked'}" id="chunk-${index + 1}">
+            <h3><i class="ph ph-buildings aphasia-icon"></i> ${chunk.heading}</h3>
+            <div style="margin: 12px 0;">
+               ${chunk.content}
+            </div>
+            ${chunk.example ? `
+            <div class="ai-tint card-sm" style="border-radius: 4px;">
+                <p class="text-sm" style="margin: 0;"><strong>Example:</strong> ${chunk.example}</p>
+            </div>` : ''}
+            
+            ${index < lessonData.chunks.length - 1 ? `
+            <button class="btn-primary chunk-btn" onclick="unlockChunk(${index + 2}, this)">
+              Next Concept <i class="ph ph-arrow-down"></i>
+            </button>` : `<p class="text-success font-medium mt-10"><i class="ph ph-check-circle"></i> Lesson Complete</p>`}
+          </div>
+        `;
+        canvasContainer.insertAdjacentHTML('beforeend', chunkHtml);
+      });
+    } else {
+       canvasContainer.innerHTML = `<p>Lesson generated, but format was unexpected.</p>`;
+    }
+
   } catch (error) {
+    console.error("API Error:", error);
     header.innerText = "Error Generating Lesson";
-    canvasContainer.innerHTML = `<p style="color: #ef4444;">Could not connect to the backend. Is api_server.py running?</p>`;
+    canvasContainer.innerHTML = `<p style="color: #ef4444;">Could not connect to the backend or process the document. Error: ${error.message}</p>`;
   }
 }
 
