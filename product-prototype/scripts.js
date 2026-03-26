@@ -881,3 +881,154 @@ function deleteSession(filename) {
         document.getElementById('canvas-content-area').innerHTML = '';
     }
 }
+
+// ==========================================
+// VOICE ACCESSIBILITY ENGINE (STT & TTS)
+// ==========================================
+
+// --- SPEECH TO TEXT (Dictation) ---
+let recognition;
+let isRecording = false;
+
+// Check if browser supports speech recognition
+if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.continuous = false; // Stops listening when user pauses
+    recognition.interimResults = false;
+    
+    recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        
+        // Find out where the user is currently typing
+        const activeEl = document.activeElement;
+        
+        // Check if they are clicked inside an input or textarea
+        if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+            // Add a space if there's already text, otherwise just inject it
+            const currentVal = activeEl.value;
+            activeEl.value = currentVal ? currentVal + ' ' + transcript : transcript;
+        } else {
+            // Fallback: If they aren't clicked in a box, try to find the active "Custom Message" box on the canvas
+            const canvasInputs = document.querySelectorAll('.custom-message-box.active input');
+            if (canvasInputs.length > 0) {
+                const target = canvasInputs[canvasInputs.length - 1];
+                target.value = target.value ? target.value + ' ' + transcript : transcript;
+            } else {
+                alert(`Heard: "${transcript}"\n\n(Click inside an input box first so I know where to type it!)`);
+            }
+        }
+    };
+    
+    recognition.onerror = (event) => {
+        console.error("Microphone error:", event.error);
+        stopSTT();
+    };
+    
+    recognition.onend = () => {
+        stopSTT(); // Ensure UI resets when they stop talking
+    };
+}
+
+function toggleSTT() {
+    if (!recognition) {
+        alert("Your browser does not support Voice Dictation. Please use Google Chrome or Microsoft Edge.");
+        return;
+    }
+    if (isRecording) {
+        stopSTT();
+    } else {
+        startSTT();
+    }
+}
+
+function startSTT() {
+    isRecording = true;
+    document.getElementById('stt-btn').classList.add('recording');
+    recognition.start();
+}
+
+function stopSTT() {
+    isRecording = false;
+    document.getElementById('stt-btn').classList.remove('recording');
+    try { recognition.stop(); } catch(e) {}
+}
+
+
+// --- TEXT TO SPEECH (Read Aloud) ---
+let isSpeaking = false;
+
+function toggleTTS() {
+    const synth = window.speechSynthesis;
+    const btn = document.getElementById('tts-btn');
+    
+    // 1. Force clear any stuck audio in the browser's queue
+    if (isSpeaking || synth.speaking) {
+        synth.cancel(); 
+        isSpeaking = false;
+        btn.classList.remove('speaking');
+        console.log("TTS manually stopped.");
+        return;
+    }
+    
+    // 2. Figure out what to read
+    let textToRead = window.getSelection().toString().trim();
+    
+    // Priority 2: If nothing is highlighted, find the latest AI card
+    if (!textToRead) {
+        // Find ALL elements with the ai-content-wrapper class
+        const aiChunks = document.querySelectorAll('.ai-content-wrapper');
+        
+        if (aiChunks.length > 0) {
+            // Grab the very last one in the array (the most recent message)
+            const latestChunk = aiChunks[aiChunks.length - 1];
+            
+            // Use textContent as a fallback in case innerText fails to read dynamic HTML
+            textToRead = latestChunk.innerText || latestChunk.textContent;
+        }
+    }
+    
+    // Clean up the text (remove extra line breaks that might confuse the API)
+    textToRead = textToRead.trim();
+
+    if (!textToRead) {
+        console.warn("TTS: Could not find any text to read on the screen.");
+        alert("Please highlight some text or open a lesson first!");
+        return;
+    }
+
+    console.log("TTS is preparing to read:", textToRead.substring(0, 50) + "...");
+
+    // 3. Prepare the voice
+    // Always create a fresh utterance object to avoid browser bugs
+    const utterance = new SpeechSynthesisUtterance(textToRead);
+    
+    // Profile-based adaptive audio adjustments
+    if (typeof state !== 'undefined' && (state.uiProfile === 'aphasia' || state.uiProfile === 'dementia')) {
+        utterance.rate = 0.85; // Speak 15% slower
+    } else {
+        utterance.rate = 1.0;  // Normal speed
+    }
+    
+    // 4. Handle UI Animations
+    utterance.onstart = () => {
+        isSpeaking = true;
+        btn.classList.add('speaking');
+    };
+    
+    utterance.onend = () => {
+        isSpeaking = false;
+        btn.classList.remove('speaking');
+    };
+    
+    utterance.onerror = (event) => {
+        console.error("TTS Engine Error:", event);
+        isSpeaking = false;
+        btn.classList.remove('speaking');
+        // Force a cancel if it errors out so it doesn't get permanently stuck
+        synth.cancel(); 
+    };
+    
+    // 5. Speak!
+    synth.speak(utterance);
+}

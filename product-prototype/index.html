@@ -172,7 +172,7 @@
                 <div class="flex justify-between items-center" style="margin-bottom: var(--spacing-2);">
                     <div>
                         <span class="text-sm text-secondary font-medium"><i class="ph ph-magic-wand"></i> Adaptive Mode Active</span>
-                        <h1 style="margin-bottom: 0;" id="canvas-lesson-title">Biology: Cell Structure</h1>
+                        <h1 style="margin-bottom: 0;" id="canvas-lesson-title">Select a resource or module from dashboard to start...</h1>
                     </div>
                 </div>
 
@@ -234,6 +234,15 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <div class="fab-container">
+        <button id="tts-btn" class="fab btn-icon" onclick="toggleTTS()" title="Read Aloud (Highlight text or click to read latest asset)">
+            <i class="ph ph-speaker-high"></i>
+        </button>
+        <button id="stt-btn" class="fab btn-icon" onclick="toggleSTT()" title="Dictate (Click inside an input box, then click me)">
+            <i class="ph ph-microphone"></i>
+        </button>
     </div>
 
     <script src="scripts.js"></script>

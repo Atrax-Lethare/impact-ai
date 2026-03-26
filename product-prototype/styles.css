@@ -438,3 +438,59 @@ body.profile-memory .persistent-anchor {
 .custom-message-box.active {
     display: flex; gap: 8px; animation: fadeIn 0.3s ease;
 }
+
+/* ---------------------------------------------------
+   FLOATING ACCESSIBILITY BUTTONS (STT / TTS)
+   --------------------------------------------------- */
+.fab-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    z-index: 9999;
+}
+
+.fab {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background-color: var(--color-bg-card);
+    border: 2px solid var(--color-primary);
+    color: var(--color-primary);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.fab:hover {
+    transform: scale(1.1);
+    background-color: var(--color-primary);
+    color: var(--color-bg-card);
+}
+
+/* Animation when the Microphone is listening */
+.fab.recording {
+    animation: pulseRecord 1.5s infinite;
+    background-color: var(--color-attention);
+    border-color: var(--color-attention);
+    color: white;
+}
+
+/* State when Text-to-Speech is reading */
+.fab.speaking {
+    background-color: var(--color-success);
+    border-color: var(--color-success);
+    color: white;
+}
+
+@keyframes pulseRecord {
+    0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+    70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
