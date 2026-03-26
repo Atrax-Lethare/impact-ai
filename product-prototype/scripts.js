@@ -886,66 +886,148 @@ function deleteSession(filename) {
 // VOICE ACCESSIBILITY ENGINE (STT & TTS)
 // ==========================================
 
-// --- SPEECH TO TEXT (Dictation) ---
+// ==========================================
+// VOICE ACCESSIBILITY ENGINE (STT & TTS)
+// ==========================================
+
+// --- SPEECH TO TEXT & VOICE COMMANDS (Dictation & Navigation) ---
 let recognition;
 let isRecording = false;
 
-// Check if browser supports speech recognition
+// 1. The Command Parser
+function processVoiceCommand(transcript) {
+    // Clean up the text for easier matching (lowercase, remove periods)
+    const text = transcript.toLowerCase().replace(/[.,!?]/g, '').trim();
+    console.log("Parsing command:", text);
+
+    // Navigation Commands
+    if (text.includes('open dashboard') || text.includes('go to dashboard')) {
+        navigate('dashboard');
+        speakSystemFeedback("Opening dashboard");
+        return true;
+    }
+    if (text.includes('open resource') || text.includes('go to resource')) {
+        navigate('resources');
+        speakSystemFeedback("Opening resource hub");
+        return true;
+    }
+    
+    // Audio Commands
+    if (text.includes('read page') || text.includes('read this') || text.includes('read aloud')) {
+        toggleTTS();
+        return true;
+    }
+    if (text.includes('stop reading') || text.includes('quiet') || text.includes('shut up')) {
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
+        isSpeaking = false;
+        document.getElementById('tts-btn').classList.remove('speaking');
+        return true;
+    }
+    
+    // System Commands
+    if (text === 'stop listening' || text === 'turn off microphone') {
+        speakSystemFeedback("Microphone disabled.");
+        stopSTT();
+        return true;
+    }
+
+    // Dynamic Module Resuming (e.g. "open module biology" or "resume website checklist")
+    if (text.includes('open module') || text.includes('resume') || text.includes('open lesson')) {
+        if (typeof state !== 'undefined' && state.sessions && state.sessions.length > 0) {
+            for (let session of state.sessions) {
+                // Remove .pdf from the filename for natural voice matching
+                const cleanTitle = session.filename.toLowerCase().replace('.pdf', '').replace('.txt', '');
+                
+                if (text.includes(cleanTitle)) {
+                    speakSystemFeedback(`Resuming ${cleanTitle}`);
+                    resumeLesson(session.filename);
+                    return true;
+                }
+            }
+        }
+        speakSystemFeedback("I couldn't find a module with that name.");
+        return true; // We processed it as a command, even if it failed, so don't type it out
+    }
+
+    // Not a command, treat as normal dictation
+    return false; 
+}
+
+// Optional: Give the user audio feedback when a command works
+function speakSystemFeedback(message) {
+    if (!window.speechSynthesis) return;
+    const feedback = new SpeechSynthesisUtterance(message);
+    feedback.volume = 0.5; // Keep it quiet so it isn't jarring
+    window.speechSynthesis.speak(feedback);
+}
+
+// 2. The upgraded Microphone Logic
 if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     recognition = new SpeechRecognition();
-    recognition.continuous = false; // Stops listening when user pauses
+    
+    // CHANGED: True means it won't turn off when the user takes a breath
+    recognition.continuous = true; 
     recognition.interimResults = false;
     
     recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
+        // Grab the most recent thing they said
+        const lastResultIndex = event.results.length - 1;
+        const transcript = event.results[lastResultIndex][0].transcript;
         
-        // Find out where the user is currently typing
-        const activeEl = document.activeElement;
+        // Check if it's a voice command FIRST
+        const isCommand = processVoiceCommand(transcript);
         
-        // Check if they are clicked inside an input or textarea
-        if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
-            // Add a space if there's already text, otherwise just inject it
-            const currentVal = activeEl.value;
-            activeEl.value = currentVal ? currentVal + ' ' + transcript : transcript;
-        } else {
-            // Fallback: If they aren't clicked in a box, try to find the active "Custom Message" box on the canvas
-            const canvasInputs = document.querySelectorAll('.custom-message-box.active input');
-            if (canvasInputs.length > 0) {
-                const target = canvasInputs[canvasInputs.length - 1];
-                target.value = target.value ? target.value + ' ' + transcript : transcript;
+        // If it wasn't a command, type it out
+        if (!isCommand) {
+            const activeEl = document.activeElement;
+            if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+                const currentVal = activeEl.value;
+                activeEl.value = currentVal ? currentVal + ' ' + transcript : transcript;
             } else {
-                alert(`Heard: "${transcript}"\n\n(Click inside an input box first so I know where to type it!)`);
+                const canvasInputs = document.querySelectorAll('.custom-message-box.active input');
+                if (canvasInputs.length > 0) {
+                    const target = canvasInputs[canvasInputs.length - 1];
+                    target.value = target.value ? target.value + ' ' + transcript : transcript;
+                }
             }
         }
     };
     
     recognition.onerror = (event) => {
-        console.error("Microphone error:", event.error);
-        stopSTT();
+        if (event.error !== 'no-speech') {
+            console.error("Microphone error:", event.error);
+        }
     };
     
     recognition.onend = () => {
-        stopSTT(); // Ensure UI resets when they stop talking
+        // HANDS-FREE HACK: Browsers forcefully stop the mic after a few minutes of silence.
+        // If isRecording is still true, instantly restart it!
+        if (isRecording) {
+            try { recognition.start(); } catch(e) {}
+        } else {
+            document.getElementById('stt-btn').classList.remove('recording');
+        }
     };
 }
 
 function toggleSTT() {
     if (!recognition) {
-        alert("Your browser does not support Voice Dictation. Please use Google Chrome or Microsoft Edge.");
+        alert("Your browser does not support Voice Dictation. Please use Chrome or Edge.");
         return;
     }
     if (isRecording) {
         stopSTT();
     } else {
         startSTT();
+        speakSystemFeedback("Listening for commands.");
     }
 }
 
 function startSTT() {
     isRecording = true;
     document.getElementById('stt-btn').classList.add('recording');
-    recognition.start();
+    try { recognition.start(); } catch(e) {}
 }
 
 function stopSTT() {
@@ -956,79 +1038,81 @@ function stopSTT() {
 
 
 // --- TEXT TO SPEECH (Read Aloud) ---
+const synth = window.speechSynthesis;
 let isSpeaking = false;
+let currentUtterance = null; // NEW: Kept in global scope to prevent browser garbage collection bugs!
 
 function toggleTTS() {
     const synth = window.speechSynthesis;
     const btn = document.getElementById('tts-btn');
     
-    // 1. Force clear any stuck audio in the browser's queue
-    if (isSpeaking || synth.speaking) {
+    // 1. Only cancel if it is ACTUALLY speaking or stuck in the queue.
+    if (synth.speaking || synth.pending || isSpeaking) {
         synth.cancel(); 
         isSpeaking = false;
         btn.classList.remove('speaking');
         console.log("TTS manually stopped.");
-        return;
+        return; 
     }
     
     // 2. Figure out what to read
     let textToRead = window.getSelection().toString().trim();
     
-    // Priority 2: If nothing is highlighted, find the latest AI card
     if (!textToRead) {
-        // Find ALL elements with the ai-content-wrapper class
         const aiChunks = document.querySelectorAll('.ai-content-wrapper');
-        
         if (aiChunks.length > 0) {
-            // Grab the very last one in the array (the most recent message)
             const latestChunk = aiChunks[aiChunks.length - 1];
-            
-            // Use textContent as a fallback in case innerText fails to read dynamic HTML
             textToRead = latestChunk.innerText || latestChunk.textContent;
         }
     }
     
-    // Clean up the text (remove extra line breaks that might confuse the API)
-    textToRead = textToRead.trim();
+    // Clean up the text: remove weird line breaks or extra spaces that crash the API
+    textToRead = textToRead.replace(/\s+/g, ' ').trim();
 
-    if (!textToRead) {
-        console.warn("TTS: Could not find any text to read on the screen.");
+    if (!textToRead || textToRead === '') {
         alert("Please highlight some text or open a lesson first!");
         return;
     }
 
-    console.log("TTS is preparing to read:", textToRead.substring(0, 50) + "...");
+    console.log("TTS Reading:", textToRead);
 
-    // 3. Prepare the voice
-    // Always create a fresh utterance object to avoid browser bugs
-    const utterance = new SpeechSynthesisUtterance(textToRead);
+    // 3. Prepare the utterance
+    currentUtterance = new SpeechSynthesisUtterance(textToRead);
     
-    // Profile-based adaptive audio adjustments
+    // NEW: Explicitly grab your computer's voices and assign an English one
+    // This prevents the "synthesis-failed" error from a missing default voice
+    const voices = synth.getVoices();
+    if (voices.length > 0) {
+        // Try to find an English voice, otherwise just use the first one available
+        const defaultVoice = voices.find(voice => voice.lang.startsWith('en')) || voices[0];
+        currentUtterance.voice = defaultVoice;
+    }
+    
+    // Apply speed modifiers
     if (typeof state !== 'undefined' && (state.uiProfile === 'aphasia' || state.uiProfile === 'dementia')) {
-        utterance.rate = 0.85; // Speak 15% slower
+        currentUtterance.rate = 0.85; 
     } else {
-        utterance.rate = 1.0;  // Normal speed
+        currentUtterance.rate = 1.0;  
     }
     
     // 4. Handle UI Animations
-    utterance.onstart = () => {
+    currentUtterance.onstart = () => {
         isSpeaking = true;
         btn.classList.add('speaking');
     };
     
-    utterance.onend = () => {
+    currentUtterance.onend = () => {
         isSpeaking = false;
         btn.classList.remove('speaking');
+        currentUtterance = null; 
     };
     
-    utterance.onerror = (event) => {
-        console.error("TTS Engine Error:", event);
+    currentUtterance.onerror = (event) => {
+        console.error("TTS Engine Error details:", event);
         isSpeaking = false;
         btn.classList.remove('speaking');
-        // Force a cancel if it errors out so it doesn't get permanently stuck
-        synth.cancel(); 
     };
     
     // 5. Speak!
-    synth.speak(utterance);
+    synth.speak(currentUtterance);
 }
