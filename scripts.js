@@ -515,6 +515,29 @@ async function generateLesson(filename) {
     
     state.activeLesson = filename;
     if(breadcrumb) breadcrumb.innerText = filename;
+
+    const sessionExists = state.sessions.find(s => s.filename === filename);
+    
+    if (!sessionExists) {
+        // 1. Add to our local state
+        state.sessions.push({ filename: filename });
+        
+        // 2. Save to browser memory
+        localStorage.setItem('neuroLearn_sessions', JSON.stringify(state.sessions));
+        
+        // 3. Save to Firebase Database
+        if (state.userId) {
+            db.collection("users").doc(state.userId).set({
+                sessions: state.sessions,
+                lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true })
+            .then(() => console.log(`Session ${filename} saved to database.`))
+            .catch(err => console.error("Error saving session to DB:", err));
+        }
+        
+        // 4. Re-render the dashboard so it shows up immediately
+        renderDashboardSessions();
+    }
     
     navigate('canvas');
     canvasContainer.innerHTML = `
