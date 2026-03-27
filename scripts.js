@@ -376,6 +376,8 @@ function applyUIConfig(profileName) {
     const loginHeader = document.getElementById('login-header');
     const loginBtn = document.getElementById('btn-login-text');
 
+    const navResources = document.getElementById('nav-btn-resources');
+
     if (profileName === 'dementia') {
         // Active Voice & Direct Instructions
         if(navDashboard) navDashboard.innerHTML = `<i class="ph ph-squares-four text-lg"></i> <span>Go to the Home Page</span>`;

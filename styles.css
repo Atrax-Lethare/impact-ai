@@ -307,9 +307,22 @@ html.dark body.profile-autism.strict-sensory .card {
     border: 2px solid #333;
 }
 
-/* Enforce literal, high-legibility typography */
-body.profile-autism * {
+/* Apply literal typography ONLY to reading elements */
+body.profile-autism .ai-content-wrapper,
+body.profile-autism .literal-box,
+body.profile-autism p,
+body.profile-autism h1,
+body.profile-autism h2,
+body.profile-autism h3,
+body.profile-autism li {
     font-family: monospace, sans-serif !important; 
+}
+
+/* Explicitly protect the typography of input boxes, buttons, and nav links */
+body.profile-autism input,
+body.profile-autism button,
+body.profile-autism .nav-link {
+    font-family: var(--font-sans) !important;
 }
 
 /* --- DEMENTIA PROFILE SPECIFICS --- */
