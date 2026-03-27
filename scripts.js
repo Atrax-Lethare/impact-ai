@@ -549,6 +549,19 @@ async function generateLesson(filename) {
 
     const rawText = state.fileContents[filename] || "";
 
+    if (!rawText.trim()) {
+        canvasContainer.innerHTML = `
+            <div class="card text-center mt-10" style="border-color: var(--color-attention);">
+                <i class="ph ph-warning-circle text-attention text-4xl mb-2 block mx-auto"></i>
+                <h3>Missing Document Text</h3>
+                <p>The AI didn't receive the text for <b>${filename}</b>.</p>
+                <p class="text-sm text-muted">This happens if you refreshed the page (clearing the browser's temporary memory) or if the PDF consists of scanned images rather than selectable text.</p>
+                <button class="btn-primary mt-3" onclick="navigate('resources')">Go back and re-upload the file</button>
+            </div>
+        `;
+        return; // Stop the function before it hits the backend
+    }
+
     try {
         const response = await fetch('http://127.0.0.1:8000/generate-lesson', {
             method: 'POST',
