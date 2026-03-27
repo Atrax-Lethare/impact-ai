@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Adaptive Learning Explorer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-800 font-sans p-4 md:p-8">
+
+  <!-- Header Section -->
+  <header class="max-w-6xl mx-auto mb-8 text-center">
+    <div class="flex justify-center items-center gap-3 mb-4">
+      <div class="p-3 bg-indigo-100 rounded-full text-indigo-600">
+        <i data-lucide="brain-circuit" class="w-10 h-10"></i>
+      </div>
+      <h1 class="text-3xl md:text-5xl font-extrabold text-slate-900 tracking-tight">
+        Neuro-Adaptive Learning
+      </h1>
+    </div>
+    <p class="text-lg text-slate-600 max-w-2xl mx-auto">
+      Experience how Python Machine Learning tracks micro-interactions to build highly supportive, accessible environments.
+    </p>
+  </header>
+
+  <!-- Navigation Tabs -->
+  <div class="max-w-6xl mx-auto mb-6 flex gap-4 justify-center">
+    <button id="btn-tab-task" class="px-6 py-3 rounded-full font-bold transition-all bg-indigo-600 text-white shadow-md flex items-center gap-2">
+      <i data-lucide="play" class="w-[18px] h-[18px]"></i> 1. Live Calibration Task
+    </button>
+    <button id="btn-tab-manual" class="px-6 py-3 rounded-full font-bold transition-all bg-white text-slate-600 hover:bg-slate-100 border border-slate-200 flex items-center gap-2">
+      <i data-lucide="square-square" class="w-[18px] h-[18px]"></i> 2. View Data & Predictions
+    </button>
+  </div>
+
+  <main class="max-w-6xl mx-auto">
+    
+    <!-- === TAB 1: LIVE TASK === -->
+    <div id="tab-task" class="block">
+      <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden flex flex-col items-center justify-center p-8 min-h-[500px] relative">
+        
+        <!-- Idle State -->
+        <div id="task-idle" class="text-center max-w-md block">
+          <div class="bg-indigo-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <i data-lucide="activity" class="w-10 h-10 text-indigo-500"></i>
+          </div>
+          <h2 class="text-2xl font-bold mb-4">Take the Interactive Test</h2>
+          <p class="text-slate-600 mb-8">
+            Click 'Start', read the short passage, and follow the instructions. The system will record your interaction patterns (not your camera/audio) to calculate your cognitive telemetry.
+          </p>
+          <button id="btn-start-task" class="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all">
+            Start Calibration
+          </button>
+        </div>
+
+        <!-- Running State -->
+        <div id="task-running" class="w-full max-w-2xl bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl p-6 h-[400px] overflow-y-auto hidden">
+          <div class="flex justify-between items-center mb-6">
+            <button id="btn-fake-back" class="flex items-center gap-2 text-slate-500 hover:text-slate-800 bg-white px-3 py-1 rounded border shadow-sm">
+              <i data-lucide="refresh-ccw" class="w-4 h-4"></i> Fake Back Button
+            </button>
+            <span class="text-red-500 font-bold animate-pulse text-sm">Recording Data...</span>
+          </div>
+
+          <div id="tracking-text-box" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-6 cursor-text">
+            <h3 class="font-bold text-xl mb-3">The Solar System (Hover to Read)</h3>
+            <p class="text-slate-700 leading-relaxed mb-4">
+              The Solar System is the gravitationally bound system of the Sun and the objects that orbit it. 
+              Try reading this text slowly. The system is tracking your "Text Dwell Time". 
+            </p>
+            <p class="text-slate-700 leading-relaxed">
+              Try scrolling up and down a few times. Try clicking the fake back button. Try clicking rapidly right here. 
+              These actions simulate frustration, motor difficulty, or cognitive processing times which the ML model detects!
+            </p>
+          </div>
+
+          <div class="flex justify-end mt-12">
+            <button id="btn-finish-task" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-bold shadow flex items-center gap-2">
+              <i data-lucide="check-circle-2" class="w-5 h-5"></i> Finish Task
+            </button>
+          </div>
+        </div>
+
+        <!-- Completed State -->
+        <div id="task-completed" class="text-center hidden">
+          <i data-lucide="check-circle-2" class="w-[60px] h-[60px] text-green-500 mx-auto mb-4"></i>
+          <h2 class="text-2xl font-bold mb-2">Calibration Complete!</h2>
+          <p class="text-slate-600">Your telemetry data has been captured.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- === TAB 2: DATA & PREDICTIONS === -->
+    <div id="tab-manual" class="hidden">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <!-- Left: Variables -->
+        <section class="lg:col-span-5 bg-white rounded-3xl shadow-sm border border-slate-200 p-6">
+          <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+            <h2 class="text-xl font-bold flex items-center gap-2">
+              <i data-lucide="settings-2" class="text-indigo-500"></i>
+              Model Variables (X Data)
+            </h2>
+            <button id="btn-download-csv" class="flex items-center gap-1 text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-full transition-colors">
+              <i data-lucide="download" class="w-[14px] h-[14px]"></i> Export for Python
+            </button>
+          </div>
+          
+          <div id="live-data-notice" class="mb-4 text-xs font-bold text-green-700 bg-green-100 p-2 rounded-lg text-center hidden">
+            Showing data captured from your live session!
+          </div>
+
+          <div id="sliders-container" class="space-y-4">
+            <!-- Sliders will be injected here via JS -->
+          </div>
+        </section>
+
+        <!-- Right: Model Pipeline & Output -->
+        <section class="lg:col-span-7 space-y-6">
+          <!-- Python Pipeline Explanation -->
+          <div class="bg-indigo-900 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden">
+            <div class="absolute top-0 right-0 p-4 opacity-10">
+              <i data-lucide="brain-circuit" class="w-[120px] h-[120px]"></i>
+            </div>
+            <h2 class="text-xl font-bold mb-3 flex items-center gap-2">
+              <i data-lucide="graduation-cap" class="text-indigo-300"></i> Python Prediction Engine
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="bg-indigo-800/50 rounded-xl p-3 border border-indigo-700">
+                <h3 class="font-bold text-indigo-300 text-sm mb-1">1. Preprocessing (StandardScaler)</h3>
+                <p class="text-xs text-indigo-100">Normalizes variables so large numbers (px/sec) don't overpower small numbers (clicks).</p>
+              </div>
+              <div class="bg-indigo-800/50 rounded-xl p-3 border border-indigo-700">
+                <h3 class="font-bold text-indigo-300 text-sm mb-1">2. Classification (RandomForest)</h3>
+                <p class="text-xs text-indigo-100">Analyzes patterns in your interaction data to predict the optimal cognitive support cluster.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- The Output Prediction -->
+          <div class="bg-white rounded-3xl shadow-sm border border-slate-200 p-6">
+            <div class="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
+              <h2 class="text-xl font-bold flex items-center gap-2">
+                <i data-lucide="shield-alert" class="text-indigo-500"></i> Target Output (y Data)
+              </h2>
+              <span id="processing-indicator" class="text-xs text-indigo-600 font-bold animate-pulse hidden">Calculating...</span>
+            </div>
+
+            <div id="prediction-wrapper-anim" class="transition-opacity duration-300 opacity-100">
+              <div id="prediction-wrapper" class="p-5 rounded-2xl border-2 flex flex-col md:flex-row gap-5 items-start bg-gray-100 border-gray-300 text-gray-800">
+                <div class="bg-white p-3 rounded-xl shadow-sm" id="prediction-icon">
+                  <!-- Icon injected here -->
+                </div>
+                <div>
+                  <h3 id="prediction-title" class="text-xl font-extrabold mb-1">Cluster 4: Standard Engagement</h3>
+                  <p id="prediction-desc" class="mb-3 text-sm font-medium opacity-90">Current standard settings seem to be working well for your interaction style.</p>
+                  
+                  <h4 class="font-bold text-xs uppercase tracking-wider mb-2 opacity-75">Recommended UI Accommodations:</h4>
+                  <ul id="prediction-accommodations" class="space-y-1">
+                    <!-- Accommodations injected here -->
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // --- Data Definitions ---
+    const CLUSTERS = [
+      {
+        id: 0,
+        name: "Paced Learner Profile",
+        description: "You thrive when given ample time to process information without rushing.",
+        accommodations: ["Disable all countdown timers", "Break large tasks into smaller chunks", "Provide 'Save & Continue Later' options"],
+        iconSvg: '<svg class="w-8 h-8 text-blue-500" xmlns="http://www.w-800/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+        color: "bg-blue-100 border-blue-300 text-blue-800"
+      },
+      {
+        id: 1,
+        name: "Audio-Visual Learner",
+        description: "You process information best when it's read aloud or highly visual.",
+        accommodations: ["Enable Text-to-Speech automatically", "Highlight text as it is read", "Provide video summaries instead of long articles"],
+        iconSvg: '<svg class="w-8 h-8 text-purple-500" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>',
+        color: "bg-purple-100 border-purple-300 text-purple-800"
+      },
+      {
+        id: 2,
+        name: "Guided Navigator",
+        description: "You prefer clear, structured pathways and sometimes get turned around in complex menus.",
+        accommodations: ["Show clear step-by-step breadcrumbs", "Hide distracting sidebar menus", "Provide a 'Take me back to start' panic button"],
+        iconSvg: '<svg class="w-8 h-8 text-green-500" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" x2="9" y1="3" y2="18"/><line x1="15" x2="15" y1="6" y2="21"/></svg>',
+        color: "bg-green-100 border-green-300 text-green-800"
+      },
+      {
+        id: 3,
+        name: "Kinesthetic Support",
+        description: "You might find precise mouse movements tiring or difficult. Focus is on motor accommodation.",
+        accommodations: ["Increase the size of all clickable buttons", "Enable easy keyboard navigation (Tab/Enter)", "Smooth out scrolling automatically"],
+        iconSvg: '<svg class="w-8 h-8 text-orange-500" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>',
+        color: "bg-orange-100 border-orange-300 text-orange-800"
+      },
+      {
+        id: 4,
+        name: "Standard Engagement",
+        description: "Current standard settings seem to be working well for your interaction style.",
+        accommodations: ["Maintain standard layout", "Keep dynamic interactive elements active", "Standard font sizes"],
+        iconSvg: '<svg class="w-8 h-8 text-gray-500" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>',
+        color: "bg-gray-100 border-gray-300 text-gray-800"
+      }
+    ];
+
+    const FEATURES = [
+      { id: 'time_to_first_click', label: 'Time to First Click (s)', min: 0, max: 20.0, step: 0.5, icon: 'clock' },
+      { id: 'task_completion_time', label: 'Task Completion Time (s)', min: 0, max: 120, step: 1, icon: 'activity' },
+      { id: 'mouse_velocity_avg', label: 'Mouse Speed (px/s)', min: 0, max: 1500, step: 10, icon: 'mouse-pointer-2' },
+      { id: 'cursor_straightness', label: 'Cursor Straightness (0-1)', min: 0.1, max: 1.0, step: 0.05, icon: 'settings-2' },
+      { id: 'scroll_reversals', label: 'Scroll Reversals', min: 0, max: 20, step: 1, icon: 'refresh-ccw' },
+      { id: 'repetitive_clicks', label: 'Repetitive Clicks', min: 0, max: 20, step: 1, icon: 'mouse-pointer-2' },
+      { id: 'back_button_usage', label: 'Back Button Usage', min: 0, max: 10, step: 1, icon: 'refresh-ccw' },
+      { id: 'text_dwell_time', label: 'Text Dwell Time (s)', min: 0.0, max: 60.0, step: 0.5, icon: 'book-open' }
+    ];
+
+    // --- State Variables ---
+    let activeTab = 'task';
+    let testState = 'idle'; // idle, running, completed
+    let predictionTimer = null;
+    let currentClusterId = 4;
+    
+    let telemetry = {
+      time_to_first_click: 2.5,
+      task_completion_time: 25,
+      mouse_velocity_avg: 400,
+      cursor_straightness: 0.8,
+      scroll_reversals: 1,
+      repetitive_clicks: 0,
+      back_button_usage: 0,
+      text_dwell_time: 8.0
+    };
+
+    let tracker = {
+      startTime: 0,
+      firstClickTime: null,
+      pathLength: 0,
+      lastPos: null,
+      startPos: null,
+      lastScrollDir: null,
+      scrollReversals: 0,
+      clickTimes: [],
+      repetitiveClicks: 0,
+      backButtonUsage: 0,
+      textHoverStart: null,
+      totalTextDwellMs: 0
+    };
+
+    // --- UI Updaters ---
+    async function updatePrediction() {
+    clearTimeout(predictionTimer);
+    
+    // Show calculating indicator
+    document.getElementById('processing-indicator').classList.remove('hidden');
+    document.getElementById('prediction-wrapper-anim').classList.remove('opacity-100');
+    document.getElementById('prediction-wrapper-anim').classList.add('opacity-50');
+
+    try {
+        // 1. Send the telemetry object to our Python backend
+        const response = await fetch('http://127.0.0.1:5000/predict', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(telemetry)
+        });
+
+        if (!response.ok) throw new Error("Network response was not ok");
+        
+        // 2. Get the prediction result back
+        const data = await response.json();
+        
+        if (data.success) {
+        const cluster = CLUSTERS[data.cluster_id];
+        currentClusterId = cluster.id;
+
+        // 3. Update the UI with the Python prediction
+        document.getElementById('prediction-icon').innerHTML = cluster.iconSvg;
+        document.getElementById('prediction-title').textContent = `Cluster ${cluster.id}: ${cluster.name}`;
+        document.getElementById('prediction-desc').textContent = cluster.description;
+        
+        const accList = document.getElementById('prediction-accommodations');
+        accList.innerHTML = '';
+        cluster.accommodations.forEach(acc => {
+            const li = document.createElement('li');
+            li.className = "flex items-start gap-2 bg-white/50 p-1.5 rounded text-sm";
+            li.innerHTML = `<i data-lucide="check-circle-2" class="w-4 h-4 shrink-0 mt-0.5"></i> <span class="font-medium">${acc}</span>`;
+            accList.appendChild(li);
+        });
+
+        lucide.createIcons({ root: accList });
+
+        // Update UI Colors
+        const wrapper = document.getElementById('prediction-wrapper');
+        wrapper.className = `p-5 rounded-2xl border-2 flex flex-col md:flex-row gap-5 items-start ${cluster.color}`;
+        }
+    } catch (error) {
+        console.error("Failed to fetch prediction from Python API:", error);
+        document.getElementById('prediction-desc').textContent = "⚠️ Error: Could not connect to Python backend. Is app.py running?";
+    } finally {
+        // Hide calculating indicator
+        document.getElementById('processing-indicator').classList.add('hidden');
+        document.getElementById('prediction-wrapper-anim').classList.remove('opacity-50');
+        document.getElementById('prediction-wrapper-anim').classList.add('opacity-100');
+    }
+    }
+
+    function renderSliders() {
+      const container = document.getElementById('sliders-container');
+      container.innerHTML = '';
+
+      FEATURES.forEach(feature => {
+        const div = document.createElement('div');
+        div.className = "bg-slate-50 p-3 rounded-xl border border-slate-100";
+        div.innerHTML = `
+          <div class="flex justify-between items-center mb-2">
+            <label for="${feature.id}" class="text-sm font-semibold text-slate-700 flex items-center gap-2">
+              <i data-lucide="${feature.icon}" class="w-[18px] h-[18px]"></i> ${feature.label}
+            </label>
+            <span id="val-${feature.id}" class="font-mono bg-indigo-100 text-indigo-800 py-0.5 px-2 rounded md text-xs font-bold">
+              ${telemetry[feature.id]}
+            </span>
+          </div>
+          <input
+            type="range" id="${feature.id}" min="${feature.min}" max="${feature.max}" step="${feature.step}"
+            value="${telemetry[feature.id]}"
+            class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+          />
+        `;
+        container.appendChild(div);
+
+        // Add event listener
+        const input = document.getElementById(feature.id);
+        input.addEventListener('input', (e) => {
+          const val = parseFloat(e.target.value);
+          telemetry[feature.id] = val;
+          document.getElementById(`val-${feature.id}`).textContent = val;
+          updatePrediction();
+        });
+      });
+      lucide.createIcons({ root: container });
+    }
+
+    function syncSlidersUI() {
+      FEATURES.forEach(f => {
+        const input = document.getElementById(f.id);
+        const span = document.getElementById(`val-${f.id}`);
+        if(input && span) {
+          input.value = telemetry[f.id];
+          span.textContent = telemetry[f.id];
+        }
+      });
+      updatePrediction();
+    }
+
+    function switchTab(tab) {
+      activeTab = tab;
+      const tabTaskBtn = document.getElementById('btn-tab-task');
+      const tabManualBtn = document.getElementById('btn-tab-manual');
+      const tabTaskContent = document.getElementById('tab-task');
+      const tabManualContent = document.getElementById('tab-manual');
+
+      if (tab === 'task') {
+        tabTaskBtn.className = "px-6 py-3 rounded-full font-bold transition-all bg-indigo-600 text-white shadow-md flex items-center gap-2";
+        tabManualBtn.className = "px-6 py-3 rounded-full font-bold transition-all bg-white text-slate-600 hover:bg-slate-100 border border-slate-200 flex items-center gap-2";
+        tabTaskContent.classList.remove('hidden');
+        tabTaskContent.classList.add('block');
+        tabManualContent.classList.remove('block');
+        tabManualContent.classList.add('hidden');
+      } else {
+        tabManualBtn.className = "px-6 py-3 rounded-full font-bold transition-all bg-indigo-600 text-white shadow-md flex items-center gap-2";
+        tabTaskBtn.className = "px-6 py-3 rounded-full font-bold transition-all bg-white text-slate-600 hover:bg-slate-100 border border-slate-200 flex items-center gap-2";
+        tabManualContent.classList.remove('hidden');
+        tabManualContent.classList.add('block');
+        tabTaskContent.classList.remove('block');
+        tabTaskContent.classList.add('hidden');
+      }
+    }
+
+    function updateTestState(state) {
+      testState = state;
+      const idle = document.getElementById('task-idle');
+      const running = document.getElementById('task-running');
+      const completed = document.getElementById('task-completed');
+
+      idle.classList.add('hidden');
+      running.classList.add('hidden');
+      completed.classList.add('hidden');
+
+      if (state === 'idle') idle.classList.remove('hidden');
+      if (state === 'running') running.classList.remove('hidden');
+      if (state === 'completed') completed.classList.remove('hidden');
+    }
+
+    // --- Actions ---
+    function startTask() {
+      tracker = {
+        startTime: Date.now(),
+        firstClickTime: null,
+        pathLength: 0,
+        lastPos: null,
+        startPos: null,
+        lastScrollDir: null,
+        scrollReversals: 0,
+        clickTimes: [],
+        repetitiveClicks: 0,
+        backButtonUsage: 0,
+        textHoverStart: null,
+        totalTextDwellMs: 0
+      };
+      updateTestState('running');
+    }
+
+    function finishTask(e) {
+      if(e) e.stopPropagation();
+      const now = Date.now();
+      
+      // Finalize text dwell
+      if (tracker.textHoverStart) {
+        tracker.totalTextDwellMs += (now - tracker.textHoverStart);
+        tracker.textHoverStart = null;
+      }
+
+      const taskTime = (now - tracker.startTime) / 1000;
+      const timeToFirst = tracker.firstClickTime ? (tracker.firstClickTime - tracker.startTime) / 1000 : taskTime;
+      const velocity = tracker.pathLength / (taskTime || 1);
+      
+      let straightness = 1.0;
+      if (tracker.startPos && tracker.lastPos && tracker.pathLength > 0) {
+        const straightDist = Math.hypot(tracker.lastPos.x - tracker.startPos.x, tracker.lastPos.y - tracker.startPos.y);
+        straightness = Math.min(1.0, straightDist / tracker.pathLength);
+        if (isNaN(straightness)) straightness = 1.0;
+      }
+
+      telemetry = {
+        time_to_first_click: parseFloat(timeToFirst.toFixed(2)),
+        task_completion_time: parseFloat(taskTime.toFixed(1)),
+        mouse_velocity_avg: parseFloat(velocity.toFixed(0)),
+        cursor_straightness: parseFloat(straightness.toFixed(2)),
+        scroll_reversals: tracker.scrollReversals,
+        repetitive_clicks: tracker.repetitiveClicks,
+        back_button_usage: tracker.backButtonUsage,
+        text_dwell_time: parseFloat((tracker.totalTextDwellMs / 1000).toFixed(1))
+      };
+
+      updateTestState('completed');
+      syncSlidersUI();
+      document.getElementById('live-data-notice').classList.remove('hidden');
+      switchTab('manual');
+    }
+
+    function downloadCSV() {
+      const exportData = { ...telemetry, cluster_label: currentClusterId };
+      const headers = Object.keys(exportData).join(',');
+      const values = Object.values(exportData).join(',');
+      const csvContent = "data:text/csv;charset=utf-8," + headers + "\n" + values;
+      
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", "user_telemetry_session.csv");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    }
+
+    // --- Tracking Event Handlers ---
+    const handleMouseMove = (e) => {
+      if (testState !== 'running') return;
+      const { clientX: x, clientY: y } = e;
+      if (!tracker.startPos) tracker.startPos = { x, y };
+      if (tracker.lastPos) {
+        tracker.pathLength += Math.hypot(x - tracker.lastPos.x, y - tracker.lastPos.y);
+      }
+      tracker.lastPos = { x, y };
+    };
+
+    const handleGlobalClick = (e) => {
+      if (testState !== 'running') return;
+      const now = Date.now();
+      if (!tracker.firstClickTime) tracker.firstClickTime = now;
+
+      if (tracker.clickTimes.length > 0) {
+        const last = tracker.clickTimes[tracker.clickTimes.length - 1];
+        if (now - last.time < 500 && Math.hypot(e.clientX - last.x, e.clientY - last.y) < 30) {
+          tracker.repetitiveClicks++;
+        }
+      }
+      tracker.clickTimes.push({ time: now, x: e.clientX, y: e.clientY });
+    };
+
+    const handleScroll = (e) => {
+      if (testState !== 'running') return;
+      const dir = e.deltaY > 0 ? 'down' : 'up';
+      if (tracker.lastScrollDir && tracker.lastScrollDir !== dir) {
+        tracker.scrollReversals++;
+      }
+      tracker.lastScrollDir = dir;
+    };
+
+    const handleBackClick = (e) => {
+      e.stopPropagation();
+      handleGlobalClick(e);
+      tracker.backButtonUsage++;
+    };
+
+    // --- Initialization ---
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      renderSliders();
+      updatePrediction();
+
+      // Bind Tab Buttons
+      document.getElementById('btn-tab-task').addEventListener('click', () => switchTab('task'));
+      document.getElementById('btn-tab-manual').addEventListener('click', () => switchTab('manual'));
+
+      // Bind Action Buttons
+      document.getElementById('btn-start-task').addEventListener('click', startTask);
+      document.getElementById('btn-finish-task').addEventListener('click', finishTask);
+      document.getElementById('btn-download-csv').addEventListener('click', downloadCSV);
+      document.getElementById('btn-fake-back').addEventListener('click', handleBackClick);
+
+      // Bind Tracking Area Events
+      const trackArea = document.getElementById('task-running');
+      trackArea.addEventListener('mousemove', handleMouseMove);
+      trackArea.addEventListener('click', handleGlobalClick);
+      trackArea.addEventListener('wheel', handleScroll);
+
+      // Bind Text Hover Events
+      const textBox = document.getElementById('tracking-text-box');
+      textBox.addEventListener('mouseenter', () => {
+        if (testState === 'running') tracker.textHoverStart = Date.now();
+      });
+      textBox.addEventListener('mouseleave', () => {
+        if (testState === 'running' && tracker.textHoverStart) {
+          tracker.totalTextDwellMs += (Date.now() - tracker.textHoverStart);
+          tracker.textHoverStart = null;
+        }
+      });
+    });
+  </script>
+</body>
+</html>
