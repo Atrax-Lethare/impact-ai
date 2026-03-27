@@ -918,3 +918,12 @@ body.profile-memory .layout-split {
     display: block;
 }
 
+/* Ensure ALL images returned by the AI scale correctly and are visible */
+.ai-content-wrapper img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    margin: 16px auto;
+    display: block;
+}

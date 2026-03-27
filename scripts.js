@@ -801,16 +801,20 @@ async function submitAIFeedback(assetId, action) {
 
 // --- DARK MODE LOGIC ---
 function toggleDarkMode() {
-  state.isDarkMode = !state.isDarkMode;
-  const toggleBg = document.getElementById('toggle-dark');
+    state.isDarkMode = !state.isDarkMode;
+    const toggleBg = document.getElementById('toggle-dark');
 
-  if (state.isDarkMode) {
-    document.documentElement.classList.add('dark');
-    toggleBg.classList.add('active');
-  } else {
-    document.documentElement.classList.remove('dark');
-    toggleBg.classList.remove('active');
-  }
+    if (state.isDarkMode) {
+        document.documentElement.classList.add('dark');
+        toggleBg.classList.add('active');
+        // Tell Mermaid to use white lines/text for the dark background
+        if (window.mermaid) mermaid.initialize({ theme: 'dark' });
+    } else {
+        document.documentElement.classList.remove('dark');
+        toggleBg.classList.remove('active');
+        // Revert Mermaid to default colors
+        if (window.mermaid) mermaid.initialize({ theme: 'default' });
+    }
 }
 
 if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
